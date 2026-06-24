@@ -1,0 +1,768 @@
+---
+title: "GEIER_LAB_graph_Anhedonia"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This document uses igraph to look at some graphs & metrics for imaging resting state data.
+
+Libraries, Data, and Working Directory
+
+```{r}
+#Working directory
+setwd("C:/Users/Katie/OneDrive - The Pennsylvania State University/b-geierlab Shared/Anhedonia/Cleaning&Analysis/Cleaning_for_R/3_cleaning_for_R_csv/My_Regions_csv_n45/")
+
+#Libraries
+library(psych) #For descriptive statistics
+library(ggplot2) #For plotting
+library(tidyverse) #For other data stuff
+library(dplyr) #Data manipulation
+library(stats) #For correlations
+library(GGally) #For ggpairs function
+library(igraph) #For various igraph stuff
+library(qgraph) #For plotting graphs
+library(gridExtra) #For embedding multiple figures into one figure
+library(corrplot) #? Might not need
+
+options(scipen=999) #Removes scientific notation
+
+#Read in data
+dat <- read.csv("All_subj_139roi_.csv", header = TRUE)
+dat2 <- read.csv("All_subj_139roi_3groups.csv", header = TRUE)
+dat_fpdm <- read.csv("All_subj_139roi_fpdm.csv", header = TRUE)
+
+#Look at the first few rows
+head(dat)
+head(dat2)
+head(dat_fpdm)
+
+#Get some descriptive statistics
+describe(dat)
+describe(dat2)
+describe(dat_fpdm)
+```
+
+Correlation approach for functional connectivity. Goal is to calculate correlations among all ROIs for each group.
+
+First step is to create a total of 2 datasets--healthy controls (HC) and depressed (MDD).
+
+The code below uses tidyverse (specifically dplyr). I'm creating a dataset called "AGE_DAY" by taking the original data set and filtering it by AGE and DAY.
+
+```{r}
+#Healthy Control Group
+hc <- dat %>% 
+  filter(type == "HC")
+
+#Group with Major Depression
+mdd <- dat %>% 
+  filter(type2 == "MDD")
+
+##############################################################################################
+#For some analyses, I will split the MDD group into Treatment Resistant Depression (TRD) & Treatment Responsive group or "Major Depression Treated" (MDT)
+
+#HC group 
+hc2 <- dat2 %>% 
+  filter(types == "HC")
+
+#TRD group
+trd <- dat2 %>% 
+  filter(type == "TRD")
+
+#MDT group
+mdt <- dat2 %>% 
+  filter(types == "MDD")
+
+##############################################################################################
+#For some analyses, I will isolate 2 networks (e.g. FrontoParietal & Default Mode):
+
+#Healthy Control Group
+hc_fpdm <- dat_fpdm %>% 
+  filter(type == "HC")
+
+#Group with Major Depression
+mdd_fpdm <- dat_fpdm %>% 
+  filter(type == "MDD")
+
+```
+
+Second step is to create correlation matrices. Cor argument uses bracket/matrix arguments. Bracketed matricies are in the form [ROW,COLUMN]. So if you only want do to math on columns 9-12 would be [ ,9:12]. If just 9 & 12 it would be [ ,c("VAR_9", "VAR_12")].  
+
+```{r}
+#Healthy Control Group
+###Correlate data
+hc_mat <- cor(hc[,3:141], 
+                     use = "na.or.complete") #Basically ignore the NAs
+hc_mat_cingop <- cor(hc[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+hc_mat_dmode <- cor(hc[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+hc_mat_frparietal <- cor(hc[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+hc_mat_sali <- cor(hc[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+hc_mat_subc <- cor(hc[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+hc_mat_dorsalatt <- cor(hc[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+hc_mat_fpdm <- cor(hc_fpdm[,3:85], 
+                     use = "na.or.complete") #gives matrix for default mode & frontoparietal mode networks
+
+###make matrix form
+hc_mat <- as.matrix(hc_mat)
+hc_mat_cingop <- as.matrix(hc_mat_cingop)
+hc_mat_dmode <- as.matrix(hc_mat_dmode)
+hc_mat_frparietal <- as.matrix(hc_mat_frparietal)
+hc_mat_sali <- as.matrix(hc_mat_sali)
+hc_mat_subc <- as.matrix(hc_mat_subc)
+hc_mat_dorsalatt <- as.matrix(hc_mat_dorsalatt)
+
+hc_mat_fpdm <- as.matrix(hc_mat_fpdm)
+
+#Group with Major Depression
+###Correlate data
+mdd_mat <- cor(mdd[,3:141], 
+                     use = "na.or.complete")
+mdd_mat_cingop <- cor(mdd[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+mdd_mat_dmode <- cor(mdd[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+mdd_mat_frparietal <- cor(mdd[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+mdd_mat_sali <- cor(mdd[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+mdd_mat_subc <- cor(mdd[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+mdd_mat_dorsalatt <- cor(mdd[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+mdd_mat_fpdm <- cor(mdd_fpdm[,3:85], 
+                     use = "na.or.complete") #gives matrix for default mode & frontoparietal mode networks
+
+###make matrix form
+mdd_mat <- as.matrix(mdd_mat)
+mdd_mat_cingop <- as.matrix(mdd_mat_cingop)
+mdd_mat_dmode <- as.matrix(mdd_mat_dmode)
+mdd_mat_frparietal <- as.matrix(mdd_mat_frparietal)
+mdd_mat_sali <- as.matrix(mdd_mat_sali)
+mdd_mat_subc <- as.matrix(mdd_mat_subc)
+mdd_mat_dorsalatt <- as.matrix(mdd_mat_dorsalatt)
+
+mdd_mat_fpdm <- as.matrix(mdd_mat_fpdm)
+
+
+##############################################################################################
+#For some analyses, I will split the MDD group into Treatment Resistant Depression (TRD) & Treatment Responsive group or "Major Depression Treated" (MDT)
+#Correlate data (for Healthy Controls first)
+hc_mat2 <- cor(hc2[,3:141], 
+                     use = "na.or.complete") #Basically ignore the NAs
+hc_mat_cingop2 <- cor(hc2[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+hc_mat_dmode2 <- cor(hc2[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+hc_mat_frparietal2 <- cor(hc2[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+hc_mat_sali2 <- cor(hc2[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+hc_mat_subc2 <- cor(hc2[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+hc_mat_dorsalatt2 <- cor(hc2[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+hc_mat_fpdm2 <- cor(hc2[,3:85], 
+                     use = "na.or.complete") #gives matrix for default mode & frontoparietal mode 
+
+###make matrix form
+hc_mat2 <- as.matrix(hc_mat2)
+hc_mat_cingop2 <- as.matrix(hc_mat_cingop2)
+hc_mat_dmode2 <- as.matrix(hc_mat_dmode2)
+hc_mat_frparietal2 <- as.matrix(hc_mat_frparietal2)
+hc_mat_sali2 <- as.matrix(hc_mat_sali2)
+hc_mat_subc2 <- as.matrix(hc_mat_subc2)
+hc_mat_dorsalatt2 <- as.matrix(hc_mat_dorsalatt2)
+
+hc_mat_fpdm2 <- as.matrix(hc_mat_fpdm2)
+
+#Group with Treatment Resistant Major Depression
+###Correlate data
+trd_mat <- cor(trd[,3:141], 
+                     use = "na.or.complete")
+trd_mat_cingop <- cor(trd[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+trd_mat_dmode <- cor(trd[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+trd_mat_frparietal <- cor(trd[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+trd_mat_sali <- cor(trd[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+trd_mat_subc <- cor(trd[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+trd_mat_dorsalatt <- cor(trd[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+trd_mat_fpdm <- cor(trd[,17:99], 
+                     use = "na.or.complete") #gives matrix for default mode & frontoparietal mode networks
+
+###make matrix form
+trd_mat <- as.matrix(trd_mat)
+trd_mat_cingop <- as.matrix(trd_mat_cingop)
+trd_mat_dmode <- as.matrix(trd_mat_dmode)
+trd_mat_frparietal <- as.matrix(trd_mat_frparietal)
+trd_mat_sali <- as.matrix(trd_mat_sali)
+trd_mat_subc <- as.matrix(trd_mat_subc)
+trd_mat_dorsalatt <- as.matrix(trd_mat_dorsalatt)
+
+trd_mat_fpdm <- as.matrix(trd_mat_fpdm)
+
+
+#Group with Treatment Responsive Major Depression or MD-treated (MDT)
+###Correlate data
+mdt_mat <- cor(mdt[,3:141], 
+                     use = "na.or.complete")
+mdt_mat_cingop <- cor(mdt[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+mdt_mat_dmode <- cor(mdt[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+mdt_mat_frparietal <- cor(mdt[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+mdt_mat_sali <- cor(mdt[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+mdt_mat_subc <- cor(mdt[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+mdt_mat_dorsalatt <- cor(mdt[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+mdt_mat_fpdm <- cor(mdt[,17:99], 
+                     use = "na.or.complete") #gives matrix for default mode & frontoparietal mode networks
+
+###make matrix form
+mdt_mat <- as.matrix(mdt_mat)
+mdt_mat_cingop <- as.matrix(mdt_mat_cingop)
+mdt_mat_dmode <- as.matrix(mdt_mat_dmode)
+mdt_mat_frparietal <- as.matrix(mdt_mat_frparietal)
+mdt_mat_sali <- as.matrix(mdt_mat_sali)
+mdt_mat_subc <- as.matrix(mdt_mat_subc)
+mdt_mat_dorsalatt <- as.matrix(mdt_mat_dorsalatt)
+
+mdt_mat_fpdm <- as.matrix(mdt_mat_fpdm)
+```
+
+Third step is to graph!
+
+I like qgraph for the plotting features. Igraph these days seems to be more useful for calculating graph theory metrics. I'm probably not the best person to ask on this though...
+
+Below I am compiling a total of 12 graphs. First 6 will have no threshold (i.e., all paths, sig or not, are shown on the plot)
+
+```{r}
+#All edges
+#Healthy Control Group
+hc_plot_all <- qgraph(hc_mat, 
+                             edge.labels = TRUE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring") #There are many layouts. See ?qgraph
+
+#All edges
+#Group with Major Depression
+mdd_plot_all <- qgraph(mdd_mat, 
+                             edge.labels = TRUE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring") #There are many layouts. See ?qgraph
+
+```
+
+
+```{r}
+#Read in csv with networks grouped together
+group <- read.csv("ROIs_by_network_139_.csv", header = TRUE)
+saveRDS(group, "group.rds")
+group <- as.list(group)
+
+group_dm <- read.csv("ROIs_by_network_dm.csv", header = TRUE)
+saveRDS(group_dm, "group_dm.rds")
+group_dm <- as.list(group_dm)
+
+group_fpdm2 <- read.csv("ROIs_by_network_fpdm2.csv", header = TRUE)
+saveRDS(group_fpdm2, "group_fpdm2.rds")
+group_fpdm2 <- as.list(group_fpdm2)
+
+
+colors <- c("red","yellow","green", "cyan", "blue", "purple")
+
+colors_co <- c("red")
+colors_dm <- c("yellow")
+colors_fp <- c("green")
+colors_sal <- c("cyan")
+colors_sub <- c("blue")
+colors_da <- c("purple")
+colors_fpdm <- c("yellow","green")
+```
+
+
+Now we will also threshold to .2, not significance. We can do it by significance, but for initial passes at networks, this approach works well.
+
+Reference: http://sachaepskamp.com/qgraph/reference/qgraph.html
+
+```{r}
+#Setting minimum to .2
+#Healthy Control Group
+hc_plot_2 <- qgraph(hc_mat, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group, 
+                             legend = TRUE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors, #applies a customized list of colors
+                             vsize = 2, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "Healthy Control Networks")
+
+#Setting minimum to .2
+#Group with Major Depression
+mdd_plot_2 <- qgraph(mdd_mat, 
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE, #("right", "(x,y)", pch=1, title= "right"), #or legend = FALSE
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors, #applies a customized list of colors
+                             vsize = 2, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "Major Depression Networks")
+
+```
+
+
+```{r}
+#graphing by network (Healthy Controls):
+#Setting minimum to .2
+
+#Healthy Control Group - CinguloOpercular Network 
+hc_plot_cingop <- qgraph(hc_mat_cingop, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_co, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC CinguloOpercular Network")
+
+
+#Major Depression Group - CinguloOpercular Network 
+mdd_plot_cingop <- qgraph(mdd_mat_cingop, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_co, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD CinguloOpercular Network")
+
+
+#####################################################################################
+#Healthy Control Group - Default Mode Network 
+hc_plot_dmode <- qgraph(hc_mat_dmode, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_dm, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC Default Mode Network")
+
+
+#Major Depression Group - Default Mode Network 
+mdd_plot_dmode <- qgraph(mdd_mat_dmode, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_dm, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD Default Mode Network")
+
+
+#####################################################################################
+#Healthy Control Group - Frontal Parietal Network 
+hc_plot_frparietal <- qgraph(hc_mat_frparietal, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_fp, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC Frontal Parietal Network")
+
+
+#Major Depression Group - Frontal Parietal Network 
+mdd_plot_frparietal <- qgraph(mdd_mat_frparietal, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_fp, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD Frontal Parietal Network")
+
+
+#####################################################################################
+#Healthy Control Group - Salience Network 
+hc_plot_sali <- qgraph(hc_mat_sali, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_sal, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC Salience Network")
+
+
+#Major Depression Group - Salience Network 
+mdd_plot_sali <- qgraph(mdd_mat_sali, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_sal, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD Salience Network")
+
+
+#####################################################################################
+#Healthy Control Group - Subcortical Network 
+hc_plot_subc <- qgraph(hc_mat_subc, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_sub, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC Subcortical Network")
+
+
+#Major Depression Group - Subcortical Network 
+mdd_plot_subc <- qgraph(mdd_mat_subc, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_sub, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD Subcortical Network")
+
+
+#####################################################################################
+#Healthy Control Group - Dorsal Attention Network 
+hc_plot_dorsalatt <- qgraph(hc_mat_dorsalatt, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_da, #applies a customized list of colors
+                             vsize = 6, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC Dorsal Attention Network")
+
+
+#Major Depression Group - Dorsal Attention Network 
+mdd_plot_dorsalatt <- qgraph(mdd_mat_dorsalatt, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             #groups = group_dm,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_da, #applies a customized list of colors
+                             vsize = 6, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD Dorsal Attention Network")
+```
+
+
+```{r}
+#graphing ***between*** network (Healthy Controls):
+#Setting minimum to .2
+
+#Healthy Control Group - FrontoParietal & Default Mode Networks
+hc_plot_fpdm <- qgraph(hc_mat_fpdm2, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group_fpdm2, 
+                             legend = FALSE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             #overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                            colors = colors_fpdm, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "HC FrontoParietal & Default Mode Networks")
+
+
+#Major Depression Treated (not TRD) Group - FrontoParietal & Default Mode Networks
+mdt_plot_fpdm <- qgraph(mdt_mat_fpdm, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group_fpdm2,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             #overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_fpdm, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDT FrontoParietal & Default Mode Networks")
+
+
+#Major Depression Treated (not TRD) Group - FrontoParietal & Default Mode Networks
+trd_plot_fpdm <- qgraph(trd_mat_fpdm, #oR mdd_mat_cingop, mdd_mat_dmode, mdd_mat_frparietal, mdd_mat_sali, mdd_mat_subc, mdd_mat_dorsalatt
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group_fpdm2,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE,
+                             borders = TRUE,
+                             #overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors_fpdm, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "TRD FrontoParietal & Default Mode Networks")
+```
+
+
+```{r}
+##############################################################################################
+#For some analyses, I will split the MDD group into Treatment Resistant Depression (TRD) & Treatment Responsive group or "Major Depression Treated" (MDT)
+#Graph data (for Healthy Controls first)
+
+#Setting minimum to .2
+#Healthy Control Group
+hc2_plot_2 <- qgraph(hc_mat2, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group, 
+                             legend = TRUE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "Healthy Control Networks")
+
+#Setting minimum to .2
+#Group with Treatment Resistant Major Depression
+trd_plot_2 <- qgraph(trd_mat, 
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = TRUE, #("right", "(x,y)", pch=1, title= "right"), #or legend = FALSE
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "TRD Networks")
+
+
+#Setting minimum to .2
+#Group with Major Depression Treated (MDT), i.e. not TRD
+mdt_plot_2 <- qgraph(mdt_mat, 
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group,
+                            #graph = "pcor", #Zach says this "pcor" argument may be better than setting a minimum since it thresholds by significant correlations (I think)
+                             #plot(1.5,0, type = "n"), #Or maybe this?
+                             legend = FALSE, #("right", "(x,y)", pch=1, title= "right"), #or legend = FALSE
+                             borders = TRUE,
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors, #applies a customized list of colors
+                             vsize = 4, #This changes the size of the vertices (nodes)
+                             minimum = .2)
+                             #sampleSize = 45) 
+title(main = "MDD - Treated Networks")
+```
+
+
+Creating igraph object using "graph.adjacency" command. This is used to calculate graph theory metrics.
+
+```{r}
+g <- graph.adjacency(adult_day3_mat, mode = "undirected", weighted = TRUE)
+```
+
+Adding plots to make plot of plots
+
+```{r}
+#6 figures arranged in 1 row and 2 columns
+par(mfrow = c(1,2))
+plot(hc_plot_2)
+plot(mdd_plot_2)
+#This looks ugly. Need to change in arguments above to make look nice.
+
+#OR
+par(mfrow = c(1,2))
+plot(hc_plot_cingop)
+plot(mdd_plot_cingop)
+
+#OR
+par(mfrow = c(1,2))
+plot(hc_plot_dmode)
+plot(mdd_plot_dmode)
+
+#OR
+par(mfrow = c(1,2))
+plot(hc_plot_dorsalatt)
+plot(mdd_plot_dorsalatt)
+
+#OR
+par(mfrow = c(1,3))
+plot(hc2_plot_2)
+plot(trd_plot_2)
+plot(mdt_plot_2)
+
+#OR
+par(mfrow = c(1,2))
+plot(trd_plot_2)
+plot(mdt_plot_2)
+
+#OR
+par(mfrow = c(1,3))
+plot(hc_plot_fpdm)
+plot(trd_plot_fpdm)
+plot(mdt_plot_fpdm)
+```
+
+
+```{r}
+#Taking the average of the entire matrices:
+colMeans_hc_all <- colMeans(hc_mat2)
+mean(colMeans_hc_fpdm)
+
+colMeans_mdt_all <- colMeans(mdt_mat)
+mean(colMeans_mdt_fpdm)
+
+colMeans_trd_all <- colMeans(trd_mat)
+mean(colMeans_trd_fpdm)
+
+
+#for the fpdm networks
+colMeans_hc_fpdm <- colMeans(hc_mat_fpdm2)
+mean(colMeans_hc_fpdm)
+
+colMeans_mdt_fpdm <- colMeans(mdt_mat_fpdm)
+mean(colMeans_mdt_fpdm)
+
+colMeans_trd_fpdm <- colMeans(trd_mat_fpdm)
+mean(colMeans_trd_fpdm)
+```
+
+
+Some other nifty graphs that could be of use.
+
+```{r}
+dat %>% 
+  filter(day == "1",
+         age == "adolescent") %>%
+ggpairs(columns = 5:12,
+        aes(color = age),
+        lower = list(continuous ="smooth", alpha = 0.3, size = 0.1))
+
+
+#Modularity score - higher score means more modular
+
+#hub score - highest hub sore --> identifying nodes
+
+
+#plot(g, layout = layout.circle)
+#hub_score(g) 
+#degree(g)
+#betweenness(g)
+#all_indices(g)
+```
+
+In the future, it may be useful to create a function to do all of this with less code. Using dplyr, as I did above, can run into issues when creating functions. However, website below seems to have a general solution that should work across dplyr commands.
+
+https://medium.com/optima-blog/writing-your-own-dplyr-functions-a1568720db0d

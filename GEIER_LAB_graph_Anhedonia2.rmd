@@ -1,0 +1,221 @@
+---
+title: "GEIER_LAB_graph_Anhedonia"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This document is an intro to igraph and some plotting functions.
+
+Libraries, Data, and Working Directory
+
+```{r}
+#Working directory
+setwd("C:/Users/Katie/OneDrive - The Pennsylvania State University/b-geierlab Shared/Anhedonia/Cleaning&Analysis/Cleaning_for_R/cleaning_for_R_csv/My_Regions_csv/")
+
+#Libraries
+library(psych) #For descriptive statistics
+library(ggplot2) #For plotting
+library(tidyverse) #For other data stuff
+library(dplyr) #Data manipulation
+library(stats) #For correlations
+library(GGally) #For ggpairs function
+library(igraph) #For various igraph stuff
+library(qgraph) #For plotting graphs
+library(gridExtra) #For embedding multiple figures into one figure
+library(corrplot) #? Might not need
+
+options(scipen=999) #Removes scientific notation
+
+#Read in data
+dat <- read.csv("All_subj_139roi.csv", header = TRUE)
+#Look at the first few rows
+head(dat)
+#Get some descriptive statistics
+describe(dat)
+```
+
+Correlation approach for functional connectivity. Goal is to calculate correlations among all ROIs for each group.
+
+First step is to create a total of 2 datasets--healthy controls (HC) and depressed (MDD).
+
+The code below uses tidyverse (specifically dplyr). I'm creating a dataset called "AGE_DAY" by taking the original data set and filtering it by AGE and DAY.
+
+```{r}
+#Healthy Control Group
+hc <- dat %>% 
+  filter(type == "HC")
+
+#Group with Major Depression
+mdd <- dat %>% 
+  filter(type == "MDD")
+
+```
+
+Second step is to create correlation matrices. Cor argument uses bracket/matrix arguments. Bracketed matricies are in the form [ROW,COLUMN]. So if you only want do to math on columns 9-12 would be [ ,9:12]. If just 9 & 12 it would be [ ,c("VAR_9", "VAR_12")].  
+
+```{r}
+#Healthy Control Group
+###Correlate data
+hc_mat <- cor(hc[,3:141], 
+                     use = "na.or.complete")
+hc_mat_cingop <- cor(hc[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+hc_mat_dmode <- cor(hc[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+hc_mat_frparietal <- cor(hc[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+hc_mat_sali <- cor(hc[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+hc_mat_subc <- cor(hc[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+hc_mat_dorsalatt <- cor(hc[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+
+###make matrix form
+hc_mat <- as.matrix(hc_mat)
+hc_mat_cingop
+hc_mat_dmode 
+hc_mat_frparietal
+hc_mat_sali
+hc_mat_subc
+hc_mat_dorsalatt
+
+
+
+#Group with Major Depression
+###Correlate data
+mdd_mat <- cor(mdd[,3:141], 
+                     use = "na.or.complete")
+mdd_mat_cingop <- cor(mdd[,3:16], 
+                     use = "na.or.complete") #gives matrix for cinguloOpercular network
+mdd_mat_dmode <- cor(mdd[,17:74], 
+                     use = "na.or.complete") #gives matrix for default mode network
+mdd_mat_frparietal <- cor(mdd[,75:99], 
+                     use = "na.or.complete") #gives matrix for frontoParietal network
+mdd_mat_sali <- cor(mdd[,100:117], 
+                     use = "na.or.complete") #gives matrix for salience network
+mdd_mat_subc <- cor(mdd[,118:130], 
+                     use = "na.or.complete") #gives matrix for subcortical network
+mdd_mat_dorsalatt <- cor(mdd[,131:141], 
+                     use = "na.or.complete") #gives matrix for dorsal attention network
+
+
+###make matrix form
+mdd_mat <- as.matrix(mdd_mat)
+
+```
+
+Third step is to graph!
+
+I like qgraph for the plotting features. Igraph these days seems to be more useful for calculating graph theory metrics. I'm probably not the best person to ask on this though...
+
+Below I am compiling a total of 12 graphs. First 6 will have no threshold (i.e., all paths, sig or not, are shown on the plot)
+
+```{r}
+#All edges
+#Healthy Control Group
+hc_plot_all <- qgraph(hc_mat, 
+                             edge.labels = TRUE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring") #There are many layouts. See ?qgraph
+
+#All edges
+#Group with Major Depression
+mdd_plot_all <- qgraph(mdd_mat, 
+                             edge.labels = TRUE,#Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring") #There are many layouts. See ?qgraph
+
+```
+
+
+```{r}
+#Read in csv with networks grouped together
+group <- read.csv("ROIs_by_network_139_.csv", header = TRUE)
+saveRDS(group, "group.rds")
+group <- as.list(group)
+
+colors <- c("red","yellow","green", "cyan", "blue", "purple")
+```
+
+
+Now we will also threshold to .2, not significance. We can do it by significance, but for initial passes at networks, this approach works well.
+
+Reference: http://sachaepskamp.com/qgraph/reference/qgraph.html
+
+```{r}
+#Setting minimum to .2
+#Healthy Control Group
+hc_plot_2 <- qgraph(hc_mat, 
+                             edge.labels = FALSE,#Labels edges with correlation values 
+                             theme = "Hollywood", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group, 
+                             legend = TRUE, #This tells whether or not there is a legend
+                             borders = TRUE, #This puts a border on each node when TRUE
+                             overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             colors = colors, #applies a customized list of colors
+                             vsize = 2, #This changes the size of the vertices (nodes)
+                             minimum = .9)   #minimum = "sig", #Use either this (and the sampleSize line) or the minimum=0.2 (or whatever the threshold is)
+                             #sampleSize = 8)
+title(main = "Healthy Control Networks")
+
+#Setting minimum to .2
+#Group with Major Depression
+mdd_plot_2 <- qgraph(mdd_mat, 
+                             edge.labels = FALSE, #Labels edges with correlation values 
+                             theme = "classic", #There are many themes. See ?qgraph
+                             layout = "spring",  #There are many layouts. See ?qgraph
+                             groups = group,
+                            #graph = "pcor", 
+                             plot(1.5,0, type = "n"),
+                             legend ("right", "(x,y)", pch=1, title= "right"), #or legend = FALSE
+                             borders = TRUE,
+                             #overlay = TRUE, #This should to add a Venn diagram overlay ...but it doesn't seem to be working
+                             vsize = 2, #This changes the size of the vertices (nodes)
+                             minimum = .5)
+                             #sampleSize = 37) 
+title(main = "Major Depression Networks")
+
+```
+
+Creating igraph object using "graph.adjacency" command. This is used to calculate graph theory metrics.
+
+
+```{r}
+g <- graph.adjacency(adult_day3_mat, mode = "undirected", weighted = TRUE)
+```
+
+Adding plots to make plot of plots
+
+```{r}
+#6 figures arranged in 1 row and 2 columns
+par(mfrow = c(1,2))
+plot(hc_plot_2)
+plot(mdd_plot_2)
+#This looks ugly. Need to change in arguments above to make look nice.
+```
+
+
+Some other nifty graphs that could be of use.
+
+```{r}
+dat %>% 
+  filter(day == "1",
+         age == "adolescent") %>%
+ggpairs(columns = 5:12,
+        aes(color = age),
+        lower = list(continuous ="smooth", alpha = 0.3, size = 0.1))
+
+
+#plot(g, layout = layout.circle)
+#hub_score(g)
+#degree(g)
+#betweenness(g)
+#all_indices(g)
+```
+
+In the future, it may be useful to create a function to do all of this with less code. Using dplyr, as I did above, can run into issues when creating functions. However, website below seems to have a general solution that should work across dplyr commands.
+
+https://medium.com/optima-blog/writing-your-own-dplyr-functions-a1568720db0d
